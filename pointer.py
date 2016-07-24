@@ -90,7 +90,7 @@ def pointer_decoder(decoder_inputs, initial_state, attention_states, cell,
         def attention(query):
             """Point on hidden using hidden_features and query."""
             with vs.variable_scope("Attention"):
-                y = rnn_cell.linear(query, attention_vec_size, True)
+                y = rnn_cell._linear(query, attention_vec_size, True)
                 y = array_ops.reshape(y, [-1, 1, 1, attention_vec_size])
                 # Attention mask is a softmax of v^T * tanh(...).
                 s = math_ops.reduce_sum(
@@ -120,7 +120,7 @@ def pointer_decoder(decoder_inputs, initial_state, attention_states, cell,
             # Use the same inputs in inference, order internaly
 
             # Merge input and previous attentions into one vector of the right size.
-            x = rnn_cell.linear([inp, attns], cell.input_size, True)
+            x = rnn_cell._linear([inp, attns], cell.output_size, True)
             # Run the RNN.
             cell_output, new_state = cell(x, states[-1])
             states.append(new_state)

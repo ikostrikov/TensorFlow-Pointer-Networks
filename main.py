@@ -8,9 +8,10 @@ import random
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.models.rnn import rnn, rnn_cell, seq2seq
+
 from dataset import DataGenerator
 from pointer import pointer_decoder
+
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -20,11 +21,10 @@ flags.DEFINE_integer('rnn_size', 32, 'RNN size.  ')
 
 
 class PointerNetwork(object):
-
-    def __init__(self, max_len, input_size, size, num_layers, max_gradient_norm,
-                 batch_size, learning_rate, learning_rate_decay_factor):
+    
+    def __init__(self, max_len, input_size, size, num_layers, max_gradient_norm, batch_size, learning_rate, learning_rate_decay_factor):
         """Create the network. A simplified network that handles only sorting.
-
+        
         Args:
             max_len: maximum length of the model.
             input_size: size of the inputs data.
@@ -43,10 +43,11 @@ class PointerNetwork(object):
             self.learning_rate * learning_rate_decay_factor)
         self.global_step = tf.Variable(0, trainable=False)
 
-        cell = rnn_cell.GRUCell(size)
+        
+        cell = tf.nn.rnn_cell.GRUCell(size)
         if num_layers > 1:
-            cell = rnn_cell.MultiRNNCell([single_cell] * num_layers)
-
+            cell = tf.nn.rnn_cell.MultiRNNCell([single_cell] * num_layers)
+            
         self.encoder_inputs = []
         self.decoder_inputs = []
         self.decoder_targets = []
@@ -63,11 +64,12 @@ class PointerNetwork(object):
             self.target_weights.append(tf.placeholder(
                 tf.float32, [batch_size, 1], name="TargetWeight%d" % i))
 
+            
         # Encoder
-
+        
         # Need for attention
-        encoder_outputs, final_state = rnn.rnn(cell, self.encoder_inputs, dtype=tf.float32)
-
+        encoder_outputs, final_state = tf.nn.rnn(cell, self.encoder_inputs, dtype = tf.float32)
+        
         # Need a dummy output to point on it. End of decoding.
         encoder_outputs = [tf.zeros([FLAGS.batch_size, FLAGS.rnn_size])] + encoder_outputs
 
@@ -83,13 +85,14 @@ class PointerNetwork(object):
         with tf.variable_scope("decoder", reuse=True):
             predictions, _, inps = pointer_decoder(
                 self.decoder_inputs, final_state, attention_states, cell, feed_prev=True)
-
+            
         self.predictions = predictions
 
         self.outputs = outputs
         self.inps = inps
         # move code below to a separate function as in TF examples
-
+        
+            
     def create_feed_dict(self, encoder_input_data, decoder_input_data, decoder_target_data):
         feed_dict = {}
         for placeholder, data in zip(self.encoder_inputs, encoder_input_data):
@@ -145,6 +148,7 @@ class PointerNetwork(object):
                 train_loss_value = 0.9 * train_loss_value + 0.1 * d_x
                                 
                 if i % 100 == 0:
+                    print('Step: %d' % i)
                     print("Train: ", train_loss_value)
 
                 encoder_input_data, decoder_input_data, targets_data = dataset.next_batch(
@@ -172,12 +176,14 @@ class PointerNetwork(object):
                 all_order += FLAGS.batch_size
 
                 if i % 100 == 0:
-                    print(correct_order / all_order)
+                    print('Correct order / All order: %f' % (correct_order / all_order))
                     correct_order = 0
                     all_order = 0
                     
-                    #print(encoder_input_data, decoder_input_data, targets_data)
-                    #print(inps_)
+                    # print(encoder_input_data, decoder_input_data, targets_data)
+                    # print(inps_)
+
+
 
 if __name__ == "__main__":
     # TODO: replace other with params
@@ -185,3 +191,4 @@ if __name__ == "__main__":
                                      1, 5, FLAGS.batch_size, 1e-2, 0.95)
     dataset = DataGenerator()
     pointer_network.step()
+
