@@ -34,9 +34,9 @@ from tensorflow.python.ops import embedding_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import rnn
-from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.ops import variable_scope as vs
+from tensorflow.contrib.rnn.python.ops import core_rnn_cell_impl
 
 
 def pointer_decoder(decoder_inputs, initial_state, attention_states, cell,
@@ -90,7 +90,7 @@ def pointer_decoder(decoder_inputs, initial_state, attention_states, cell,
         def attention(query):
             """Point on hidden using hidden_features and query."""
             with vs.variable_scope("Attention"):
-                y = rnn_cell._linear(query, attention_vec_size, True)
+                y = core_rnn_cell_impl._linear(query, attention_vec_size, True)
                 y = array_ops.reshape(y, [-1, 1, 1, attention_vec_size])
                 # Attention mask is a softmax of v^T * tanh(...).
                 s = math_ops.reduce_sum(
@@ -99,18 +99,18 @@ def pointer_decoder(decoder_inputs, initial_state, attention_states, cell,
 
         outputs = []
         prev = None
-        batch_attn_size = array_ops.pack([batch_size, attn_size])
+        batch_attn_size = array_ops.stack([batch_size, attn_size])
         attns = array_ops.zeros(batch_attn_size, dtype=dtype)
 
         attns.set_shape([None, attn_size])
         inps = []
-        for i in xrange(len(decoder_inputs)):
+        for i in range(len(decoder_inputs)):
             if i > 0:
                 vs.get_variable_scope().reuse_variables()
             inp = decoder_inputs[i]
 
             if feed_prev and i > 0:
-                inp = tf.pack(decoder_inputs)
+                inp = tf.stack(decoder_inputs)
                 inp = tf.transpose(inp, perm=[1, 0, 2])
                 inp = tf.reshape(inp, [-1, attn_length, input_size])
                 inp = tf.reduce_sum(inp * tf.reshape(tf.nn.softmax(output), [-1, attn_length, 1]), 1)
@@ -120,7 +120,7 @@ def pointer_decoder(decoder_inputs, initial_state, attention_states, cell,
             # Use the same inputs in inference, order internaly
 
             # Merge input and previous attentions into one vector of the right size.
-            x = rnn_cell._linear([inp, attns], cell.output_size, True)
+            x = core_rnn_cell_impl._linear([inp, attns], cell.output_size, True)
             # Run the RNN.
             cell_output, new_state = cell(x, states[-1])
             states.append(new_state)
